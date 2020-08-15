@@ -1,0 +1,67 @@
+FROM alpine:3.8
+
+ENV ANSIBLE_VERSION 2.8.3
+
+RUN set -eux && \
+    apk --update add --virtual \
+      build-dependencies \
+      gcc \
+      libffi-dev \
+      musl-dev \
+      openssl-dev \
+      python-dev \
+    && \
+    apk update && apk upgrade && apk add --no-cache \
+      bash \
+      ca-certificates \
+      curl \
+      git \
+      openssh-client \
+      py-boto \
+      py-dateutil \
+      py-httplib2 \
+      py-jinja2 \
+      py-paramiko \
+      py-pip \
+      py-yaml \
+      python \
+      sshpass \
+      tar \
+    && \
+    pip install --upgrade pip && \
+    pip install \
+      python-keyczar \
+      docker-py \
+    && \
+    pip install \
+      "ansible==${ANSIBLE_VERSION}" \
+    && \
+    apk del build-dependencies && \
+    rm -rf /var/cache/apk/* && \
+    mkdir -pv \
+      /ansible \
+      /ansible/lib \
+      /ansible/library \
+      /etc/ansible \
+      /root/.ssh \
+    && \
+    echo "[docker_gateway]" >> /etc/ansible/hosts && \
+    echo "gateway.docker.internal" >> /etc/ansible/hosts && \
+    echo "[docker_host]" >> /etc/ansible/hosts && \
+    echo "host.docker.internal" >> /etc/ansible/hosts && \
+    echo "[local]" >> /etc/ansible/hosts && \
+    echo "localhost" >> /etc/ansible/hosts
+
+ENV ANSIBLE_GATHERING smart
+ENV ANSIBLE_HOST_KEY_CHECKING false
+ENV ANSIBLE_LIBRARY /ansible/library
+ENV ANSIBLE_RETRY_FILES_ENABLED false
+ENV ANSIBLE_ROLES_PATH /ansible/playbooks/roles
+ENV ANSIBLE_SSH_PIPELINING True
+ENV PATH /ansible/bin:$PATH
+ENV PYTHONPATH /ansible/lib
+
+COPY ./entrypoint.sh /ansible/
+WORKDIR /ansible/playbooks
+
+ENTRYPOINT [ "/ansible/entrypoint.sh" ]
